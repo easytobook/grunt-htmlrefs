@@ -29,7 +29,7 @@ module.exports = function(grunt) {
 	var inlineCSSTemplate = '<style><%= dest %></style>';
 
 	// use template
-	var useTemplate = '<use xlink:href="<%= dest %>"></use>';
+	var useTemplate = '<use xlink:href="<%= url %>"></use>';
 
 	grunt.registerMultiTask('htmlrefs', 'Replaces (or removes) references to non-optimized scripts or stylesheets on HTML files', function() {
 		var options = this.options({
@@ -123,10 +123,7 @@ module.exports = function(grunt) {
 			var indent = (block.raw[0].match(/^\s*/) || [])[0];
 
       var useTag = block.raw[1].match(/xlink:href="(.+)"/);
-      var url = useTag[1].replace(/images/, '<%= cdnpath %>/images_<%= buildNumber %>');
-
-      block.raw[1] = block.raw[1].replace(/href="(.+)"/, 'href="' + url + '"');
-      console.log(block.raw[1]);
+      block.url = useTag[1].replace(/\/images/, '<%= cdnpath %>/images_<%= buildNumber %>');
 
 			return indent + grunt.template.process(useTemplate, {
 				data: block
