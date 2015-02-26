@@ -28,6 +28,9 @@ module.exports = function(grunt) {
 	// inlineCSS template
 	var inlineCSSTemplate = '<style><%= dest %></style>';
 
+	// use template
+	var useTemplate = '<use xlink:href="<%= dest %>"></use>';
+
 	grunt.registerMultiTask('htmlrefs', 'Replaces (or removes) references to non-optimized scripts or stylesheets on HTML files', function() {
 		var options = this.options({
 			pkg: {},
@@ -39,7 +42,9 @@ module.exports = function(grunt) {
 				content,
 				lf;
 
-			content = file.src.filter(function(filepath) {
+      currentFilepath = '';
+
+			file.src.filter(function(filepath) {
 				// Remove nonexistent files (it's up to you to filter or warn here).
 				if (!grunt.file.exists(filepath)) {
 					grunt.log.warn('Source file "' + filepath + '" not found.');
@@ -48,26 +53,28 @@ module.exports = function(grunt) {
 					return true;
 				}
 			}).map(function(filepath) {
+        currentFilepath = filepath;
 				// Read and return the file's source.
-				return grunt.file.read(filepath);
-			}).join('\n');
+        content = grunt.file.read(filepath);
+        blocks = getBlocks(content);
 
-			blocks = getBlocks(content);
+        // Determine the linefeed from the content
+        lf = /\r\n/g.test(content) ? '\r\n' : '\n';
 
-			// Determine the linefeed from the content
-			lf = /\r\n/g.test(content) ? '\r\n' : '\n';
+        blocks.forEach(function(block) {
+          // Determine the indent from the content
+          var raw = block.raw.join(lf);
+          var opts = _.extend({}, block, options);
 
-			blocks.forEach(function(block) {
-				// Determine the indent from the content
-				var raw = block.raw.join(lf);
-				var opts = _.extend({}, block, options);
+          var replacement = htmlrefsTemplate[block.type](opts, lf, options.includes);
+          content = content.replace(raw, replacement);
+        });
 
-				var replacement = htmlrefsTemplate[block.type](opts, lf, options.includes);
-				content = content.replace(raw, replacement);
-			});
+        // overwrite current file
+        grunt.file.write(currentFilepath, content);
+				return 
+			})
 
-			// write the contents to destination
-			grunt.file.write(file.dest, content);
 
 		});
 	});
@@ -111,7 +118,20 @@ module.exports = function(grunt) {
 		},
 		remove: function( /*block*/ ) {
 			return ''; // removes replaces with nothing
-		}
+		},
+    use: function (block) {
+			var indent = (block.raw[0].match(/^\s*/) || [])[0];
+
+      var useTag = block.raw[1].match(/xlink:href="(.+)"/);
+      var url = useTag[1].replace(/images/, '<%= cdnpath %>/images_<%= buildNumber %>');
+
+      block.raw[1] = block.raw[1].replace(/href="(.+)"/, 'href="' + url + '"');
+      console.log(block.raw[1]);
+
+			return indent + grunt.template.process(useTemplate, {
+				data: block
+			});
+    }
 	};
 
 	function getBlocks(body) {
