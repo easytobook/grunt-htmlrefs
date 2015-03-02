@@ -28,12 +28,6 @@ module.exports = function(grunt) {
 	// inlineCSS template
 	var inlineCSSTemplate = '<style><%= dest %></style>';
 
-	// use template
-	var useTemplate = '<use xlink:href="<%= url %>"></use>';
-
-  // image template
-	var imgTemplate = '<img <%= attributes %>/>';
-
 	grunt.registerMultiTask('htmlrefs', 'Replaces (or removes) references to non-optimized scripts or stylesheets on HTML files', function() {
 		var options = this.options({
 			pkg: {},
@@ -69,7 +63,14 @@ module.exports = function(grunt) {
           var raw = block.raw.join(lf);
           var opts = _.extend({}, block, options);
 
-          var replacement = htmlrefsTemplate[block.type](opts, lf, options.includes);
+          var fn;
+          if (options.replacements[block.type]) {
+              fn = options.replacements[block.type];
+          } else {
+              fn = htmlrefsTemplate[block.type];
+          }
+
+          var replacement = fn(opts, lf, options.includes);
           content = content.replace(raw, replacement);
         });
 
@@ -121,29 +122,7 @@ module.exports = function(grunt) {
 		},
 		remove: function( /*block*/ ) {
 			return ''; // removes replaces with nothing
-		},
-    img: function (block) {
-			var indent = (block.raw[0].match(/^\s*/) || [])[0];
-
-      var imgAttributes = block.raw[1].match(/<img (.+)\/>/);
-      block.attributes = imgAttributes[1].replace(/\/images/, '<%= cdnpath %>/images_<%= buildNumber %>');
-
-			return indent + grunt.template.process(imgTemplate, {
-				data: block
-			});
-    },
-    use: function (block) {
-			var indent = (block.raw[0].match(/^\s*/) || [])[0];
-
-      // Very specific for our internal use at the moment, perhaps allow a 
-      // function to be passed for replacement
-      var useTag = block.raw[1].match(/xlink:href="(.+)"/);
-      block.url = useTag[1].replace(/\/images/, '<%= cdnpath %>/images_<%= buildNumber %>');
-
-			return indent + grunt.template.process(useTemplate, {
-				data: block
-			});
-    }
+		}
 	};
 
 	function getBlocks(body) {
